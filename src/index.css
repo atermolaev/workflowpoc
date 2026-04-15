@@ -1,0 +1,35 @@
+/* ─── Design tokens ──────────────────────────────────────────────────────── */
+:root {
+  --color-bg:      #f8f8f7;
+  --color-surface: #ffffff;
+  --color-border:  #e8e8e6;
+  --color-text:    #1a1a18;
+  --color-muted:   #888880;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg:      #111110;
+    --color-surface: #1c1c1a;
+    --color-border:  #2e2e2c;
+    --color-text:    #f0f0ee;
+    --color-muted:   #888880;
+  }
+}
+
+/* ─── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,160 @@
+/* ─── Avatar — refined editorial component ─────────────────────────────────
+   Palette derived at runtime via --av-hue (set per-instance in TSX).
+   Supports light & dark color schemes via prefers-color-scheme.
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --av-ring-color: #ffffff;
+  --av-ring-width: 2px;
+  --av-status-border: #ffffff;
+  --av-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --av-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.18), 0 8px 20px rgba(0, 0, 0, 0.10);
+  --av-transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --av-ring-color: #1a1a1a;
+    --av-status-border: #1a1a1a;
+  }
+}
+
+.av-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  animation: av-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes av-appear {
+  from { opacity: 0; transform: scale(0.72); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.av-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: var(--av-ring-offset, 3px);
+  background: conic-gradient(
+    hsl(var(--av-hue), 75%, 58%),
+    hsl(calc(var(--av-hue) + 60deg), 80%, 65%),
+    hsl(calc(var(--av-hue) + 120deg), 70%, 60%),
+    hsl(var(--av-hue), 75%, 58%)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.av-inner {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: var(--av-shadow);
+  transition: box-shadow var(--av-transition), transform var(--av-transition);
+  isolation: isolate;
+}
+
+.av-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.av-root:hover .av-inner {
+  box-shadow: var(--av-shadow-hover);
+  transform: translateY(-1px) scale(1.03);
+}
+
+.av-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.av-initials {
+  background:
+    radial-gradient(
+      ellipse at 30% 25%,
+      hsl(calc(var(--av-hue) + 20deg), 78%, 68%) 0%,
+      hsl(var(--av-hue), 65%, 48%) 60%,
+      hsl(calc(var(--av-hue) - 20deg), 72%, 40%) 100%
+    );
+}
+
+.av-letters {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'Georgia', 'Palatino Linotype', serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  user-select: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.av-status {
+  position: absolute;
+  bottom: 4%;
+  right: 4%;
+  border-radius: 50%;
+  border: 2px solid var(--av-status-border);
+  box-sizing: content-box;
+  transition: transform var(--av-transition);
+}
+
+.av-root:hover .av-status {
+  transform: scale(1.15);
+}
+
+.av-status-online  { background: #22c55e; }
+.av-status-away    { background: #f59e0b; }
+.av-status-busy    { background: #ef4444; }
+.av-status-offline { background: #94a3b8; }
+
+.av-status-online {
+  animation: av-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes av-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0.6); }
+  50%       { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);   }
+}
+
+.av-status-away {
+  animation: av-pulse-away 3s ease-in-out infinite;
+}
+
+@keyframes av-pulse-away {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(245, 158, 11, 0.5); }
+  50%       { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0);   }
+}
+
+.av-xs .av-status { border-width: 1.5px; bottom: 0; right: 0; }
+.av-xl .av-status { border-width: 2.5px; }
+
+.av-root { cursor: default; }
