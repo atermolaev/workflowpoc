@@ -1,29 +1,84 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Badge from '@/components/Badge/Badge';
 import { TYPE_LABELS, ROLE_ICON } from '@/globals/constants';
 import { specName } from '@/globals/logic';
-import type { BriefType } from '@/globals/types';
 import type { CustomerTabProps } from './CustomerTab.types';
 import styles from './CustomerTab.module.css';
+
+/* ── Helpers ── */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function CustomerTab({ briefs, specialists, onCreate }: CustomerTabProps) {
   const [showNewModal, setShowNewModal] = useState(false);
   const [detailBriefId, setDetailBriefId] = useState<number | null>(null);
 
-  // New brief form state
-  const [fType, setFType] = useState<BriefType>('article');
-  const [fTopic, setFTopic] = useState('');
-  const [fAudience, setFAudience] = useState('');
+  /* ── New brief form ── */
   const [fDeadline, setFDeadline] = useState('2026-07-01');
+  const [files, setFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const detailBrief = briefs.find(b => b.id === detailBriefId) ?? null;
 
-  function handleCreate() {
-    if (!fTopic.trim()) return;
-    onCreate(fType, fTopic.trim(), fAudience.trim() || 'Широкая аудитория', fDeadline);
+  /* ── Modal open/close ── */
+  function openModal() {
+    setFiles([]);
+    setIsDragging(false);
+    setShowNewModal(true);
+  }
+
+  function closeModal() {
     setShowNewModal(false);
-    setFTopic('');
-    setFAudience('');
+    setFiles([]);
+    setIsDragging(false);
+  }
+
+  /* ── Form submit ── */
+  function handleCreate() {
+    if (!files.length) return;
+    const topic = files.map(f => f.name).join(', ');
+    onCreate('article', topic, 'Широкая аудитория', fDeadline);
+    closeModal();
+  }
+
+  /* ── Drag & drop handlers ── */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Only leave if pointer actually left the zone (not just entered a child)
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (dropped.length) setFiles(prev => [...prev, ...dropped]);
+  }, []);
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length) setFiles(prev => [...prev, ...selected]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removeFile(index: number) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -31,7 +86,7 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
       {/* ── Header ── */}
       <div className={styles.header}>
         <h2 className={styles.title}>Мои брифы</h2>
-        <button className={styles.btnPrimary} onClick={() => setShowNewModal(true)}>
+        <button className={styles.btnPrimary} onClick={openModal}>
           + Новый бриф
         </button>
       </div>
@@ -90,42 +145,76 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
 
       {/* ── New Brief Modal ── */}
       {showNewModal && (
-        <div className={styles.backdrop} onMouseDown={() => setShowNewModal(false)}>
+        <div className={styles.backdrop} onMouseDown={closeModal}>
           <div className={styles.modal} onMouseDown={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Создание брифа</h3>
-              <button className={styles.modalClose} onClick={() => setShowNewModal(false)}>×</button>
+              <button className={styles.modalClose} onClick={closeModal}>×</button>
             </div>
             <div className={styles.modalBody}>
-              <label className={styles.label}>Тип контента</label>
-              <select
-                className={styles.select}
-                value={fType}
-                onChange={e => setFType(e.target.value as BriefType)}
+
+              {/* ── Drop zone ── */}
+              <label className={styles.label}>Файлы брифа</label>
+              <div
+                className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''} ${files.length ? styles.dropZoneHasFiles : ''}`}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
+                aria-label="Загрузить файлы"
               >
-                <option value="article">Статья</option>
-                <option value="banner">Баннер</option>
-                <option value="video">Видео</option>
-                <option value="email">Email</option>
-              </select>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className={styles.fileInputHidden}
+                  onChange={handleFileInputChange}
+                  tabIndex={-1}
+                />
 
-              <label className={styles.label}>Тема / описание</label>
-              <input
-                className={styles.input}
-                placeholder="О чём контент..."
-                value={fTopic}
-                onChange={e => setFTopic(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              />
+                {isDragging ? (
+                  <div className={styles.dropZoneContent}>
+                    <span className={styles.dropIcon}>⬇</span>
+                    <span className={styles.dropText}>Отпустите для загрузки</span>
+                  </div>
+                ) : (
+                  <div className={styles.dropZoneContent}>
+                    <span className={styles.dropIcon}>📎</span>
+                    <span className={styles.dropText}>
+                      Перетащите файлы сюда
+                    </span>
+                    <span className={styles.dropHint}>или нажмите для выбора</span>
+                  </div>
+                )}
+              </div>
 
-              <label className={styles.label}>Целевая аудитория</label>
-              <input
-                className={styles.input}
-                placeholder="Кому адресован контент..."
-                value={fAudience}
-                onChange={e => setFAudience(e.target.value)}
-              />
+              {/* ── File list ── */}
+              {files.length > 0 && (
+                <div className={styles.fileList}>
+                  {files.map((file, i) => (
+                    <div key={i} className={styles.fileItem}>
+                      <span className={styles.fileIcon}>📄</span>
+                      <div className={styles.fileInfo}>
+                        <span className={styles.fileName}>{file.name}</span>
+                        <span className={styles.fileSize}>{formatSize(file.size)}</span>
+                      </div>
+                      <button
+                        className={styles.fileRemove}
+                        onClick={e => { e.stopPropagation(); removeFile(i); }}
+                        title="Удалить"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
+              {/* ── Deadline ── */}
               <label className={styles.label}>Дедлайн</label>
               <input
                 className={styles.input}
@@ -138,7 +227,7 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
                 className={styles.btnPrimary}
                 style={{ width: '100%', marginTop: '0.25rem' }}
                 onClick={handleCreate}
-                disabled={!fTopic.trim()}
+                disabled={!files.length}
               >
                 Отправить бриф → AI декомпозиция
               </button>
