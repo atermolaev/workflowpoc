@@ -1,16 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import Badge from '@/components/Badge/Badge';
+import FileDropZone from '@/components/FileDropZone/FileDropZone';
 import { TYPE_LABELS, ROLE_ICON } from '@/globals/constants';
 import { specName } from '@/globals/logic';
 import type { CustomerTabProps } from './CustomerTab.types';
 import styles from './CustomerTab.module.css';
-
-/* ── Helpers ── */
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function CustomerTab({ briefs, specialists, onCreate }: CustomerTabProps) {
   const [showNewModal, setShowNewModal] = useState(false);
@@ -19,22 +13,18 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
   /* ── New brief form ── */
   const [fDeadline, setFDeadline] = useState('2026-07-01');
   const [files, setFiles] = useState<File[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const detailBrief = briefs.find(b => b.id === detailBriefId) ?? null;
 
   /* ── Modal open/close ── */
   function openModal() {
     setFiles([]);
-    setIsDragging(false);
     setShowNewModal(true);
   }
 
   function closeModal() {
     setShowNewModal(false);
     setFiles([]);
-    setIsDragging(false);
   }
 
   /* ── Form submit ── */
@@ -43,42 +33,6 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
     const topic = files.map(f => f.name).join(', ');
     onCreate('article', topic, 'Широкая аудитория', fDeadline);
     closeModal();
-  }
-
-  /* ── Drag & drop handlers ── */
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    // Only leave if pointer actually left the zone (not just entered a child)
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    if (dropped.length) setFiles(prev => [...prev, ...dropped]);
-  }, []);
-
-  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? []);
-    if (selected.length) setFiles(prev => [...prev, ...selected]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  function removeFile(index: number) {
-    setFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   return (
@@ -153,68 +107,9 @@ export default function CustomerTab({ briefs, specialists, onCreate }: CustomerT
             </div>
             <div className={styles.modalBody}>
 
-              {/* ── Drop zone ── */}
               <label className={styles.label}>Файлы брифа</label>
-              <div
-                className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''} ${files.length ? styles.dropZoneHasFiles : ''}`}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
-                aria-label="Загрузить файлы"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className={styles.fileInputHidden}
-                  onChange={handleFileInputChange}
-                  tabIndex={-1}
-                />
+              <FileDropZone value={files} onChange={setFiles} />
 
-                {isDragging ? (
-                  <div className={styles.dropZoneContent}>
-                    <span className={styles.dropIcon}>⬇</span>
-                    <span className={styles.dropText}>Отпустите для загрузки</span>
-                  </div>
-                ) : (
-                  <div className={styles.dropZoneContent}>
-                    <span className={styles.dropIcon}>📎</span>
-                    <span className={styles.dropText}>
-                      Перетащите файлы сюда
-                    </span>
-                    <span className={styles.dropHint}>или нажмите для выбора</span>
-                  </div>
-                )}
-              </div>
-
-              {/* ── File list ── */}
-              {files.length > 0 && (
-                <div className={styles.fileList}>
-                  {files.map((file, i) => (
-                    <div key={i} className={styles.fileItem}>
-                      <span className={styles.fileIcon}>📄</span>
-                      <div className={styles.fileInfo}>
-                        <span className={styles.fileName}>{file.name}</span>
-                        <span className={styles.fileSize}>{formatSize(file.size)}</span>
-                      </div>
-                      <button
-                        className={styles.fileRemove}
-                        onClick={e => { e.stopPropagation(); removeFile(i); }}
-                        title="Удалить"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Deadline ── */}
               <label className={styles.label}>Дедлайн</label>
               <input
                 className={styles.input}
