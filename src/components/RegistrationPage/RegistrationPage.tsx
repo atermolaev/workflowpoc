@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { registerUser } from '@/globals/auth';
 import type { UserRole, RegistrationFormData } from './RegistrationPage.types';
 import styles from './RegistrationPage.module.css';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'customer',  label: 'Заказчик' },
-  { value: 'layout',    label: 'Верстальщик' },
-  { value: 'editor',    label: 'Редактор' },
-  { value: 'designer',  label: 'Дизайнер' },
+  { value: 'customer', label: 'Заказчик' },
+  { value: 'layout',   label: 'Верстальщик' },
+  { value: 'editor',   label: 'Редактор' },
+  { value: 'designer', label: 'Дизайнер' },
 ];
 
 export default function RegistrationPage() {
@@ -15,10 +17,37 @@ export default function RegistrationPage() {
     password: '',
     role: 'customer',
   });
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('Регистрация:', form);
+    const ok = registerUser(form.login.trim(), form.password, form.role);
+    if (!ok) {
+      setError('Логин уже занят. Выберите другой.');
+      return;
+    }
+    setError('');
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.card}>
+          <div className={styles.success}>
+            <span className={styles.successIcon}>✓</span>
+            <h2 className={styles.successTitle}>Аккаунт создан</h2>
+            <p className={styles.successText}>
+              Логин <strong>{form.login}</strong> зарегистрирован как «{ROLE_OPTIONS.find(o => o.value === form.role)?.label}».
+            </p>
+            <Link to="/login" className={styles.loginLink}>
+              Войти в систему →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -31,23 +60,23 @@ export default function RegistrationPage() {
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="login">Логин</label>
+            <label className={styles.label} htmlFor="reg-login">Логин</label>
             <input
-              id="login"
+              id="reg-login"
               className={styles.input}
               type="text"
               placeholder="Введите логин"
               value={form.login}
-              onChange={e => setForm(prev => ({ ...prev, login: e.target.value }))}
+              onChange={e => { setError(''); setForm(prev => ({ ...prev, login: e.target.value })); }}
               autoComplete="username"
               required
             />
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="password">Пароль</label>
+            <label className={styles.label} htmlFor="reg-password">Пароль</label>
             <input
-              id="password"
+              id="reg-password"
               className={styles.input}
               type="password"
               placeholder="Введите пароль"
@@ -59,20 +88,20 @@ export default function RegistrationPage() {
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="role">Роль</label>
+            <label className={styles.label} htmlFor="reg-role">Роль</label>
             <select
-              id="role"
+              id="reg-role"
               className={styles.select}
               value={form.role}
               onChange={e => setForm(prev => ({ ...prev, role: e.target.value as UserRole }))}
             >
               {ROLE_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>
+
+          {error && <p className={styles.error}>{error}</p>}
 
           <button
             className={styles.submit}
@@ -82,6 +111,11 @@ export default function RegistrationPage() {
             Создать аккаунт
           </button>
         </form>
+
+        <p className={styles.authLink}>
+          Уже есть аккаунт?{' '}
+          <Link to="/login" className={styles.link}>Войти</Link>
+        </p>
       </div>
     </div>
   );

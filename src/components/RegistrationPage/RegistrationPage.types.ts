@@ -1,4 +1,6 @@
-export type UserRole = 'customer' | 'layout' | 'editor' | 'designer';
+import type { UserRole } from '@/globals/types';
+
+export type { UserRole };
 
 export interface RegistrationFormData {
   login: string;

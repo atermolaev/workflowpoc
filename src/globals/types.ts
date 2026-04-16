@@ -1,6 +1,14 @@
 export type Role = 'writer' | 'designer' | 'layout';
 export type BriefType = 'article' | 'banner' | 'video' | 'email';
 
+/** Роль пользователя в системе (ролевая модель доступа) */
+export type UserRole = 'customer' | 'layout' | 'editor' | 'designer';
+
+export interface CurrentUser {
+  login: string;
+  role: UserRole;
+}
+
 export interface Specialist {
   id: string;
   name: string;
