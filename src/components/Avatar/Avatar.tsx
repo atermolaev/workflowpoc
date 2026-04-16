@@ -1,41 +1,17 @@
 import React, { useState, useCallback } from 'react';
 import './Avatar.css';
-
-export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-export type AvatarStatus = 'online' | 'away' | 'busy' | 'offline';
-
-export interface AvatarProps {
-  src?: string;
-  alt?: string;
-  name?: string;
-  size?: AvatarSize;
-  status?: AvatarStatus;
-  ring?: boolean;
-  className?: string;
-}
+import type { AvatarProps, AvatarSize, AvatarStatus } from './Avatar.types';
 
 const SIZE_MAP: Record<AvatarSize, number> = {
-  xs: 24,
-  sm: 32,
-  md: 40,
-  lg: 56,
-  xl: 80,
+  xs: 24, sm: 32, md: 40, lg: 56, xl: 80,
 };
 
 const FONT_SIZE_MAP: Record<AvatarSize, number> = {
-  xs: 9,
-  sm: 12,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  xs: 9, sm: 12, md: 14, lg: 20, xl: 28,
 };
 
 const STATUS_SIZE_MAP: Record<AvatarSize, number> = {
-  xs: 6,
-  sm: 8,
-  md: 10,
-  lg: 13,
-  xl: 17,
+  xs: 6, sm: 8, md: 10, lg: 13, xl: 17,
 };
 
 /** Deterministic hue from a string — same name always yields the same color. */
@@ -53,6 +29,9 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// Re-export types for consumers
+export type { AvatarProps, AvatarSize, AvatarStatus };
+
 const Avatar: React.FC<AvatarProps> = ({
   src,
   alt,
@@ -63,7 +42,6 @@ const Avatar: React.FC<AvatarProps> = ({
   className = '',
 }) => {
   const [imgError, setImgError] = useState(false);
-
   const handleError = useCallback(() => setImgError(true), []);
 
   const px = SIZE_MAP[size];
@@ -72,7 +50,6 @@ const Avatar: React.FC<AvatarProps> = ({
   const showImage = src && !imgError;
   const initials = name ? getInitials(name) : '?';
   const hue = nameToHue(name || alt || '');
-
   const ringOffset = ring ? 3 : 0;
   const wrapSize = px + ringOffset * 2;
 
