@@ -1,20 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
 import CustomerTab from "@/components/CustomerTab/CustomerTab";
 import SpecialistTab from "@/components/SpecialistTab/SpecialistTab";
-import { loadState, persistState } from "@/globals/state";
-import {
-  uid,
-  generateSubtasks,
-  assignToSpecialists,
-  assembleIfDone,
-} from "@/globals/logic";
-import {
-  loadCurrentUser,
-  clearCurrentUser,
-  canAccessCustomerTab,
-} from "@/globals/auth";
-import type { AppState, BriefType, Brief } from "@/globals/types";
+import { briefCreated, taskFinished, aiApplied, fileUploaded } from "@/redux/slices/workflowSlice";
+import { logout } from "@/redux/slices/authSlice";
+import { canAccessCustomerTab } from "@/globals/auth";
+import type { RootState, AppDispatch } from "@/redux/store";
+import type { BriefType } from "@/globals/types";
 import styles from "./HomePage.module.css";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -26,115 +19,49 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const user = loadCurrentUser()!; // guaranteed by ProtectedRoute
-  const hasCustomerTab = canAccessCustomerTab(user.role);
+  const dispatch = useDispatch<AppDispatch>();
 
+  const user = useSelector((state: RootState) => state.auth.currentUser)!;
+  const { briefs, specialists } = useSelector((state: RootState) => state.workflow);
+
+  const hasCustomerTab = canAccessCustomerTab(user.role);
   const [tab, setTab] = useState<"client" | "specialist">(
     hasCustomerTab ? "client" : "specialist",
   );
-  const [appState, setAppState] = useState<AppState>(loadState);
-
-  useEffect(() => {
-    persistState(appState);
-  }, [appState]);
 
   function handleLogout() {
-    clearCurrentUser();
+    dispatch(logout());
     navigate("/login", { replace: true });
   }
 
-  /* ── State mutators ── */
-  function createBrief(
-    type: BriefType,
-    topic: string,
-    audience: string,
-    deadline: string,
-  ) {
-    setAppState((prev) => {
-      const brief: Brief = {
-        id: uid(),
-        type,
-        topic,
-        audience,
-        deadline,
-        status: "processing",
-        subtasks: [],
-        finalPublication: null,
-      };
-      const rawSubs = generateSubtasks(brief);
-      const { subs, specs } = assignToSpecialists(rawSubs, prev.specialists);
-      brief.subtasks = subs;
-      return { briefs: [brief, ...prev.briefs], specialists: specs };
-    });
+  function handleCreateBrief(type: BriefType, topic: string, audience: string, deadline: string) {
+    dispatch(briefCreated({ type, topic, audience, deadline }));
   }
 
-  function finishTask(briefId: number, subId: number, mode: "ai" | "manual") {
-    setAppState((prev) => {
-      const newSpecs = prev.specialists.map((s) => ({ ...s }));
-      const newBriefs = prev.briefs.map((b) => {
-        if (b.id !== briefId) return b;
-        const newSubs = b.subtasks.map((s) => {
-          if (s.id !== subId || s.status === "done") return s;
-          const sp = newSpecs.find((x) => x.id === s.assignee);
-          if (sp) sp.load = Math.max(0, sp.load - 1);
-          return { ...s, status: "done" as const, mode };
-        });
-        return assembleIfDone({ ...b, subtasks: newSubs });
-      });
-      return { briefs: newBriefs, specialists: newSpecs };
-    });
+  function handleFinishTask(briefId: number, subId: number, mode: "ai" | "manual") {
+    dispatch(taskFinished({ briefId, subId, mode }));
   }
 
-  function applyAI(briefId: number, subId: number, command: string) {
-    setAppState((prev) => ({
-      ...prev,
-      briefs: prev.briefs.map((b) => {
-        if (b.id !== briefId) return b;
-        return {
-          ...b,
-          subtasks: b.subtasks.map((s) => {
-            if (s.id !== subId) return s;
-            const newDraft =
-              s.aiDraft +
-              `\n\n---\n[AI по команде: «${command}»] → правка применена.`;
-            return {
-              ...s,
-              aiDraft: newDraft,
-              versions: [...s.versions, newDraft],
-            };
-          }),
-        };
-      }),
-    }));
+  function handleApplyAI(briefId: number, subId: number, command: string) {
+    dispatch(aiApplied({ briefId, subId, command }));
   }
 
-  function uploadFile(briefId: number, subId: number, filename: string) {
-    setAppState((prev) => ({
-      ...prev,
-      briefs: prev.briefs.map((b) => {
-        if (b.id !== briefId) return b;
-        return {
-          ...b,
-          subtasks: b.subtasks.map((s) =>
-            s.id !== subId ? s : { ...s, files: [...s.files, filename] },
-          ),
-        };
-      }),
-    }));
+  function handleUploadFile(briefId: number, subId: number, filename: string) {
+    dispatch(fileUploaded({ briefId, subId, filename }));
   }
 
-  const pendingCount = appState.briefs.reduce(
+  const pendingCount = briefs.reduce(
     (acc, b) => acc + b.subtasks.filter((s) => s.status === "pending").length,
     0,
   );
 
   const specialistTabContent = (
     <SpecialistTab
-      briefs={appState.briefs}
-      specialists={appState.specialists}
-      onFinish={finishTask}
-      onApplyAI={applyAI}
-      onUploadFile={uploadFile}
+      briefs={briefs}
+      specialists={specialists}
+      onFinish={handleFinishTask}
+      onApplyAI={handleApplyAI}
+      onUploadFile={handleUploadFile}
     />
   );
 
@@ -143,7 +70,6 @@ export default function HomePage() {
       <header className={styles.topBar}>
         <span className={styles.logo}>WorkFlow PoC</span>
 
-        {/* Tab nav — only rendered when user has access to both tabs */}
         {hasCustomerTab && (
           <nav className={styles.tabs}>
             <button
@@ -165,14 +91,12 @@ export default function HomePage() {
         )}
 
         <div className={styles.topBarRight}>
-          {/* Specialist loads */}
-          {appState.specialists.map((s) => (
+          {specialists.map((s) => (
             <span key={s.id} className={styles.specLoad} title={s.name}>
               {s.name.split(" ")[0]}: {s.load}
             </span>
           ))}
 
-          {/* Current user */}
           <div className={styles.userChip}>
             <span className={styles.userLogin}>{user.login}</span>
             <span className={styles.userRole}>{ROLE_LABELS[user.role]}</span>
@@ -191,9 +115,9 @@ export default function HomePage() {
         {hasCustomerTab ? (
           tab === "client" ? (
             <CustomerTab
-              briefs={appState.briefs}
-              specialists={appState.specialists}
-              onCreate={createBrief}
+              briefs={briefs}
+              specialists={specialists}
+              onCreate={handleCreateBrief}
             />
           ) : (
             specialistTabContent

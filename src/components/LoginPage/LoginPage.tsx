@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { loginUser } from '@/globals/auth';
+import { setUser } from '@/redux/slices/authSlice';
+import type { AppDispatch } from '@/redux/store';
 import type { LoginFormData } from './LoginPage.types';
 import styles from './LoginPage.module.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const [form, setForm] = useState<LoginFormData>({ login: '', password: '' });
   const [error, setError] = useState('');
 
@@ -16,6 +20,7 @@ export default function LoginPage() {
       setError('Неверный логин или пароль.');
       return;
     }
+    dispatch(setUser(user));
     navigate('/', { replace: true });
   }
 
